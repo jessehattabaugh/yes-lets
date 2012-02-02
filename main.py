@@ -28,8 +28,6 @@ def before(fn):
 				bottle.response.set_cookie('user', None, CLIENT_SECRET)
 				bottle.request.out['debug']='invalidated auth token'
 		#todo memcache user data for up to 30 days
-		else:
-			bottle.request.out['debug']='no auth token found'
 		return fn()
 	return wrapped
 
@@ -37,9 +35,11 @@ def before(fn):
 @bottle.view('home')
 @before
 def home():
-	if not 'user' in bottle.request:
+	if not 'user' in bottle.request.out:
 		bottle.request.out['client_id']=CLIENT_ID
 		bottle.request.out['redirect_uri']=REDIRECT_URI
+	else:
+		#load all the user's checkins
 	return bottle.request.out
 	
 @bottle.get('/callback')
@@ -57,6 +57,7 @@ def after_auth():
 	
 	#todo: store user id in DataStore in case token changes
 	#todo: get an email address if we don't have one yet
+	#todo: tell them what we're doing with their data and email
 
 def main():
 	app = bottle.default_app()
