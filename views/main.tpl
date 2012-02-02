@@ -47,7 +47,7 @@
 		</div>
 	</header>
 
-	<div class="container-fluid">
+	<div class="container">
 
 		<article class="hero-unit" role="main">
 			<h1>Lets hang out sometime!</h1>
@@ -55,21 +55,23 @@
 			it's hard to find a time to meet up. Using your Foursquare 
 			checkins we can tell where you and your friends hang out 
 			and what time you're there. So lets get started. Shall we!?</p>
-			<p><a class="btn-info btn-large" href="https://foursquare.com/oauth2/authenticate?client_id=0PXXC32KMHDKTYBFT1WXIS14TIJAD03GFJXEWXTTLO2XL0ZV&response_type=code&redirect_uri=http://yes-lets.appspot.com/callback">Log in with Foursquare</a></p>
+%if defined('client_id'):
+			<p><a class="btn-info btn-large" href="https://foursquare.com/oauth2/authenticate?client_id={{client_id}}&response_type=code&redirect_uri={{redirect_uri}}">Log in with Foursquare</a></p>
+%end
 		</article>
 
-		<div class="row-fluid">
-			<div class="span3">
+		<div class="row">
+			<div class="span4">
 				<h2>Everybody's so flakey.</h2>
 				<p>It's not their fault though. Sometimes you just need a little nudge to get the party started.</p>
 				<p><a class="btn" href="#">View details &raquo;</a></p>
 			</div>
-			<div class="span3">
+			<div class="span4">
 				<h2>Who has the time?</h2>
 				<p>People's work and school schedules make it hard to find a time when you're both available. If you're checking in maybe you have time to hang out.</p>
 				<p><a class="btn" href="#">View details &raquo;</a></p>
 			</div>
-			<div class="span3">
+			<div class="span4">
 				<h2>That's so far!</h2>
 				<p>Using the geolocation of your checkins we can find places nearby where you already go.</p>
 				<p><a class="btn" href="#">View details &raquo;</a></p>
@@ -115,5 +117,11 @@ alt="Powered by Google App Engine" />
 		<script src="//ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
 		<script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
 	<![endif]-->
+	
+%if defined('debug'):
+	<pre>
+		{{debug}}
+	</pre>
+%end
 </body>
 </html>
