@@ -37,9 +37,9 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</a>
-				<a class="brand" href="#">Yes, Let's!</a>
+				<a class="brand" href="/">Yes, Let's!</a>
 				<nav class="nav nav-collapse">
-					<li class="active"><a href="#">Home</a></li>
+					<li class="active"><a href="/">Home</a></li>
 					<li><a href="#invite">Invite</a></li>
 					<li><a href="#friends">Friends</a></li>
 				</nav>
@@ -48,40 +48,17 @@
 	</header>
 
 	<div class="container">
-
-		<article class="hero-unit" role="main">
-			<h1>Lets hang out sometime!</h1>
-			<p>You and your friends always say that, but everybody's so busy 
-			it's hard to find a time to meet up. Using your Foursquare 
-			checkins we can tell where you and your friends hang out 
-			and what time you're there. So lets get started. Shall we!?</p>
-%if defined('client_id'):
-			<p><a class="btn-info btn-large" href="https://foursquare.com/oauth2/authenticate?client_id={{client_id}}&response_type=code&redirect_uri={{redirect_uri}}">Log in with Foursquare</a></p>
+%if defined('stage'):
+	%stage()
+%else:
+	Nothing Here
 %end
-		</article>
-
-		<div class="row">
-			<div class="span4">
-				<h2>Everybody's so flakey.</h2>
-				<p>It's not their fault though. Sometimes you just need a little nudge to get the party started.</p>
-				<p><a class="btn" href="#">View details &raquo;</a></p>
-			</div>
-			<div class="span4">
-				<h2>Who has the time?</h2>
-				<p>People's work and school schedules make it hard to find a time when you're both available. If you're checking in maybe you have time to hang out.</p>
-				<p><a class="btn" href="#">View details &raquo;</a></p>
-			</div>
-			<div class="span4">
-				<h2>That's so far!</h2>
-				<p>Using the geolocation of your checkins we can find places nearby where you already go.</p>
-				<p><a class="btn" href="#">View details &raquo;</a></p>
-			</div>
-		</div>
 	
 		<footer>
 			&copy; 2012 <a href="mailto:arkancsican@gmail.com">Jesse Hattabaugh</a>
+			<img style="width:250px" src="https://playfoursquare.s3.amazonaws.com/press/logo/poweredByFoursquare_gray.png">
 			<img src="//code.google.com/appengine/images/appengine-silver-120x30.gif" 
-alt="Powered by Google App Engine" />
+alt="Powered by Google App Engine">
 			<div class="g-plusone" data-annotation="inline" data-width="200"></div>
 		</footer>
 	
@@ -118,7 +95,7 @@ alt="Powered by Google App Engine" />
 		<script>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
 	<![endif]-->
 	
-%if defined('debug'):
+%if defined('debug') and debug:
 	<pre>
 		{{debug}}
 	</pre>
