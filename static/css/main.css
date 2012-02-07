@@ -3,20 +3,15 @@
 footer *{
 	vertical-align: middle;
 }
-.timeline{
-	outline: 1px solid red;
-}
-.timeline div{
-	outline: 1px solid blue;
-	position:relative;
-	margin: 1em;
-}
-
-.box {
+.flexbox {
   display: -webkit-box;
   -webkit-box-orient: horizontal;
   display: -moz-box;
   -moz-box-orient: horizontal;
   display: box;
   box-orient: horizontal;
+}
+.flexbox div{
+	display: block;
+	position: relative;
 }

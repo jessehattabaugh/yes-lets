@@ -77,6 +77,7 @@ def get_checkins(oauth_token, total):
 	return checkins
 
 def get_tod_data(checkins, oauth_token):
+	#todo should really be pulling checkins from the DataStore so I can slice them more easily
 	memcache_key='get_tod_data%s%s'%(oauth_token,len(checkins))
 	data = None#memcache.get(memcache_key)
 	if not data:
@@ -111,7 +112,7 @@ def home():
 		checkins = get_checkins(request.oauth_token, request.out['user']['checkins']['count'])
 		data = get_tod_data(checkins, request.oauth_token)
 		kmcl = KMeansClustering(data)
-		clusters = kmcl.getclusters(5)
+		clusters = kmcl.getclusters(10)
 		groups=[]
 		for cl in clusters:
 			tod_max=max([i[0] for i in cl])
@@ -139,9 +140,10 @@ def auth():
 		oauth_token=auth_response['access_token']
 		bottle.response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
 		logging.info(oauth_token)
+		bottle.redirect('/')
 	else:
 		logging.error(auth_response)
-	return dict()
+		bottle.abort()
 	
 	#todo: store user id in DataStore in case token changes
 	#todo: get an email address if we don't have one yet

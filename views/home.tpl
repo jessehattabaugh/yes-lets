@@ -8,6 +8,9 @@
 		checkins we can tell where you and your friends hang out 
 		and what time you're there. So lets get started. Shall we!?</p>
 		<p><a href="https://foursquare.com/oauth2/authenticate?client_id={{client_id}}&response_type=code&redirect_uri={{redirect_uri}}"><img src="https://playfoursquare.s3.amazonaws.com/press/logo/connect-blue@2x.png"></a></p>
+		
+		<h2>Don't worry</h2>
+		<p>We only use your personal information for our records and to send you notifications from your friends. We won't send you spam, or sell your information to third parties.</p>
 	</article>
 
 	<div class="row">
@@ -37,7 +40,7 @@
 		<p><a href="{{user['canonicalUrl']}}">Foursquare Profile</a></p>
 		<p>{{user['contact']['email']}}</p>
 		
-		<ul class="nav nav-pills">
+		<!--<ul class="nav nav-pills">
 			<li class="active"><a href="#">Any Day</a></li>
 			<li class="dropdown">
 				<a class="dropdown-toggle" data-toggle="dropdown" href="#">
@@ -62,17 +65,17 @@
 			</li>
 			<li><a href="#">Today</a></li>
 			<li><a href="#">Tomorrow</a></li>
-		</ul>
+		</ul>-->
 		
-		<div class="timeline box">
+		<p>These are the </p>
+		<div class="flexbox btn-group">
 	%for g in range(len(groups)):
-			<div style="-webkit-box-flex: {{groups[g]['width']}};
+			<div class="btn" style="-webkit-box-flex: {{groups[g]['width']}};
   -moz-box-flex: {{groups[g]['width']}};
   box-flex: {{groups[g]['width']}};%">
 				{{groups[g]['len']}}
 				<br>
-				{{abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_min']))))}}
-				<br>{{abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_max']))))}}
+				{{str(abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_min'])))))+time.strftime('%p',time.gmtime(groups[g]['tod_min']))}}-{{str(abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_max'])))))+time.strftime('%p',time.gmtime(groups[g]['tod_min']))}}
 			</div>
 	%end
 		</div>
