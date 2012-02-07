@@ -36,11 +36,65 @@
 		<p><a href="{{user['canonicalUrl']}}">Foursquare Profile</a></p>
 		<p>{{user['contact']['email']}}</p>
 		
+		<div class="btn-group">
+			<a class="btn" href="#">Weekdays</a>
+			<a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+				<span class="caret"></span>
+			</a>
+			<ul class="dropdown-menu">
+				<li><a href="#">Mondays</a></li>
+				<li><a href="#">Tuesdays</a></li>
+				<li><a href="#">Wednesdays</a></li>
+				<li><a href="#">Thursdays</a></li>
+				<li><a href="#">Fridays</a></li>
+			</ul>
+		</div>
+		
+		<div class="row">
+	%for g in range(len(groups)):
+			<div class="span">
+				<h2>Group {{g}}</h2>
+				<dl>
+					<dt>count</dt>
+						<dd>{{groups[g]['len']}}</dd>
+					<dt>average time of day</dt>
+						<dd>{{groups[g]['tod_avg']}}</dd>
+					<dt>earliest time of day</dt>
+						<dd>{{groups[g]['tod_min']}}</dd>
+					<dt>latest time of day</dt>
+						<dd>{{groups[g]['tod_max']}}</dd>
+					<dt>average day</dt>
+						<dd>{{groups[g]['day_avg']}}</dd>
+					<dt>minimum day</dt>
+						<dd>{{groups[g]['day_min']}}</dd>
+					<dt>maximum day</dt>
+						<dd>{{groups[g]['day_max']}}</dd>
+					<dt>average latitude</dt>
+						<dd>{{groups[g]['lat_avg']}}</dd>
+					<dt>minimum latitude</dt>
+						<dd>{{groups[g]['lat_min']}}</dd>
+					<dt>maximum latitude</dt>
+						<dd>{{groups[g]['lat_max']}}</dd>
+					<dt>average longitude</dt>
+						<dd>{{groups[g]['lng_avg']}}</dd>
+					<dt>minimum longitude</dt>
+						<dd>{{groups[g]['lng_min']}}</dd>
+					<dt>maximum longitude</dt>
+						<dd>{{groups[g]['lng_max']}}</dd>
+				</dl>
+			</div>
+	%end
+		</div>
+		
 	</article>
 %end
 
+%def script():
+	$('.btn').button()
+%end
+
 %if defined('user'):
-	%rebase main stage=authed, debug=get('debug', None)
+	%rebase main stage=authed, debug=get('debug', None), script=script
 %else:
 	%rebase main stage=unauthed, debug=get('debug', None)
 %end
