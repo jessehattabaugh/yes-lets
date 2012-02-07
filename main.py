@@ -12,6 +12,8 @@ from urllib import urlencode
 from bottle import request
 from datetime import datetime
 from cluster import KMeansClustering
+from math import floor
+import pytz
 
 if os.environ['SERVER_SOFTWARE'].startswith('Dev'):
 	from dev_settings import *
@@ -56,34 +58,39 @@ def get_checkins(oauth_token, total):
 	for i in range(total/CHECKINS_CHUNK):
 		n = CHECKINS_CHUNK*i+CHECKINS_CHUNK
 		params['offset'] = total-n
-		chunk_key = 'checkins'+oauth_token+'chunk'+str(n)
+		chunk_key = 'checkins:%s:%s:%s'%(oauth_token, n, CHECKINS_CHUNK)
 		chunk = memcache.get(chunk_key)
 		if not chunk:
 			api_says = fetch(api+'?'+urlencode(params))
 			calls += 1
-			data = json.loads(api_says.content)
-			chunk = data['response']['checkins']['items']
-			if not memcache.replace(chunk_key, chunk, CACHE_CHECKINS):
+			chunk = api_says.content
+			if not memcache.add(chunk_key, chunk, CACHE_CHECKINS):
 				logging.error("memcache.add(%s) failed"%(chunk_key))
 			else:
 				logging.info("memcached.add(%s) succeeded"%(chunk_key))
-		checkins.extend(chunk)
+		
+		data = json.loads(chunk)
+		items = data['response']['checkins']['items']
+		checkins.extend(items)
 	
 	logging.info("Loaded %s of %s checkins in %s calls"%(len(checkins), total, calls))
 	return checkins
 
-def get_cluster_data(checkins):
-	data = []
-	for ci in checkins:
-		if ci.get('venue', 0):
-			d = datetime.fromtimestamp(ci['createdAt'])
-			data.append((
-				int(ci['createdAt']),
-				int(d.hour*60*60 + d.minute*60 + d.second),
-				int(d.weekday()),
-				ci['venue']['location']['lat'],
-				ci['venue']['location']['lng']
-			))
+def get_tod_data(checkins, oauth_token):
+	memcache_key='get_tod_data%s%s'%(oauth_token,len(checkins))
+	data = None#memcache.get(memcache_key)
+	if not data:
+		data=[]
+		for ci in checkins:
+			if ci.get('venue', 0):
+				d = datetime.fromtimestamp(ci['createdAt'], pytz.UTC).astimezone(pytz.timezone(ci['timeZone']))
+				data.append((
+					int(d.hour*60*60 + d.minute*60 + d.second),
+					int(d.hour*60*60 + d.minute*60 + d.second)
+				))
+				int(d.hour*60*60 + d.minute*60 + d.second)
+		if memcache.add(memcache_key, data):
+			logging.error('memcache add failed %s'%(memcache_key))
 	return data
 
 def mode(iterable):
@@ -102,26 +109,23 @@ def home():
 	else:
 		#load all the user's checkins
 		checkins = get_checkins(request.oauth_token, request.out['user']['checkins']['count'])
-		data = get_cluster_data(checkins)
+		data = get_tod_data(checkins, request.oauth_token)
 		kmcl = KMeansClustering(data)
-		clusters = kmcl.getclusters(6)
+		clusters = kmcl.getclusters(5)
 		groups=[]
 		for cl in clusters:
+			tod_max=max([i[0] for i in cl])
+			tod_min=min([i[0] for i in cl])
 			groups.append(dict(
 				len=len(cl),
-				tod_avg=sum([i[1] for i in cl])/len(cl),
-				tod_max=max([i[1] for i in cl]),
-				tod_min=min([i[1] for i in cl]),
-				day_avg=mode([i[2] for i in cl]),
-				day_max=max([i[2] for i in cl]),
-				day_min=min([i[2] for i in cl]),
-				lat_avg=sum([i[3] for i in cl])/len(cl),
-				lat_max=max([i[3] for i in cl]),
-				lat_min=min([i[3] for i in cl]),
-				lng_avg=sum([i[4] for i in cl])/len(cl),
-				lng_max=max([i[4] for i in cl]),
-				lng_min=min([i[4] for i in cl])
+				tod_avg=sum([i[0] for i in cl])/len(cl),
+				tod_max=tod_max,
+				tod_min=tod_min,
+				width=int(floor((tod_max-tod_min)/(60*60*24/100))),
+				left=int(floor(tod_min/(60*60*24/100)))
 			))
+				
+		groups=sorted(groups, key=lambda k: k['tod_min'])
 		request.out['groups'] = groups
 	return request.out
 	

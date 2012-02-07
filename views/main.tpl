@@ -11,15 +11,15 @@
 	
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 
-	<link rel="stylesheet" href="/bootstrap.css">
+	<link rel="stylesheet" href="/bootstrap.min.css">
 	<style>
 	body {
 		padding-top: 60px;
 		padding-bottom: 40px;
 	}
 	</style>
-	<link rel="stylesheet" href="/bootstrap-responsive.css">
-	<link rel="stylesheet" href="/style.css">
+	<link rel="stylesheet" href="/bootstrap-responsive.min.css">
+	<link rel="stylesheet" href="/main.css">
 
 	<script src="modernizr-2.5-respond-1.1.0.min.js"></script>
 </head>
@@ -70,7 +70,8 @@ alt="Powered by Google App Engine">
 
 	<script src="/transition.js"></script>
 	<script src="/collapse.js"></script>
-	<script src="/collapse.js"></script>
+	<script src="/button.js"></script>
+	<script src="/dropdown.js"></script>
 	
 	<script src="/plugins.js"></script>
 	<script src="/main.js"></script>

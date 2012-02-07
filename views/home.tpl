@@ -1,3 +1,4 @@
+%import time
 %def unauthed():
 
 	<article class="hero-unit" role="main">
@@ -36,52 +37,42 @@
 		<p><a href="{{user['canonicalUrl']}}">Foursquare Profile</a></p>
 		<p>{{user['contact']['email']}}</p>
 		
-		<div class="btn-group">
-			<a class="btn" href="#">Weekdays</a>
-			<a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
-				<span class="caret"></span>
-			</a>
-			<ul class="dropdown-menu">
-				<li><a href="#">Mondays</a></li>
-				<li><a href="#">Tuesdays</a></li>
-				<li><a href="#">Wednesdays</a></li>
-				<li><a href="#">Thursdays</a></li>
-				<li><a href="#">Fridays</a></li>
-			</ul>
-		</div>
+		<ul class="nav nav-pills">
+			<li class="active"><a href="#">Any Day</a></li>
+			<li class="dropdown">
+				<a class="dropdown-toggle" data-toggle="dropdown" href="#">
+					Weekdays
+					<i class="caret"></i>
+				</a>
+				<ul class="dropdown-menu">
+					<li><a href="#">Mondays</a></li>
+					<li><a href="#">Tuesdays</a></li>
+					<li><a href="#">Wednesdays</a></li>
+					<li><a href="#">Thursdays</a></li>
+					<li><a href="#">Fridays</a></li>
+				</ul>
+			</li>
+			<li class="dropdown">
+				<a class="dropdown-toggle" data-toggle="dropdown" href="#">Weekends
+					<i class="caret"></i></a>
+				<ul class="dropdown-menu">
+					<li><a href="#">Saturday</a></li>
+					<li><a href="#">Sunday</a></li>
+				</ul>
+			</li>
+			<li><a href="#">Today</a></li>
+			<li><a href="#">Tomorrow</a></li>
+		</ul>
 		
-		<div class="row">
+		<div class="timeline box">
 	%for g in range(len(groups)):
-			<div class="span">
-				<h2>Group {{g}}</h2>
-				<dl>
-					<dt>count</dt>
-						<dd>{{groups[g]['len']}}</dd>
-					<dt>average time of day</dt>
-						<dd>{{groups[g]['tod_avg']}}</dd>
-					<dt>earliest time of day</dt>
-						<dd>{{groups[g]['tod_min']}}</dd>
-					<dt>latest time of day</dt>
-						<dd>{{groups[g]['tod_max']}}</dd>
-					<dt>average day</dt>
-						<dd>{{groups[g]['day_avg']}}</dd>
-					<dt>minimum day</dt>
-						<dd>{{groups[g]['day_min']}}</dd>
-					<dt>maximum day</dt>
-						<dd>{{groups[g]['day_max']}}</dd>
-					<dt>average latitude</dt>
-						<dd>{{groups[g]['lat_avg']}}</dd>
-					<dt>minimum latitude</dt>
-						<dd>{{groups[g]['lat_min']}}</dd>
-					<dt>maximum latitude</dt>
-						<dd>{{groups[g]['lat_max']}}</dd>
-					<dt>average longitude</dt>
-						<dd>{{groups[g]['lng_avg']}}</dd>
-					<dt>minimum longitude</dt>
-						<dd>{{groups[g]['lng_min']}}</dd>
-					<dt>maximum longitude</dt>
-						<dd>{{groups[g]['lng_max']}}</dd>
-				</dl>
+			<div style="-webkit-box-flex: {{groups[g]['width']}};
+  -moz-box-flex: {{groups[g]['width']}};
+  box-flex: {{groups[g]['width']}};%">
+				{{groups[g]['len']}}
+				<br>
+				{{abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_min']))))}}
+				<br>{{abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_max']))))}}
 			</div>
 	%end
 		</div>
