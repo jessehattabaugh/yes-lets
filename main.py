@@ -7,6 +7,7 @@ import os, logging, bottle, random
 from google.appengine.ext.webapp import util
 from google.appengine.api.urlfetch import fetch
 from google.appengine.api import memcache
+from google.appengine.ext import db
 import simplejson as json
 from urllib import urlencode
 from bottle import request
@@ -21,19 +22,58 @@ if os.environ['SERVER_SOFTWARE'].startswith('Dev'):
 else: #prod
 	from prod_settings import *
 
-def before(fn):
+class User(db.Model):
+	oauth_token = db.StringProperty()
+	firstName = db.StringProperty()
+	lastName = db.StringProperty()
+	photo = db.LinkProperty()
+	email = db.EmailProperty()
+	link = db.LinkProperty()
+	checkins = db.IntegerProperty()
+	
+	def from_api(self, data):
+		self.firstName = data['firstName']
+		self.lastName = data['lastName']
+		self.photo = db.Link(data['photo'])
+		self.link = db.Link(data['canonicalUrl'])
+		self.email = db.Email(data['contact']['email'])
+		self.checkins = int(data['checkins']['count'])
+	
+
+def prepare_request(fn):
+	""" before filter that sets properties in request to be used by all request handlers """
 	def wrapped():
-		request.out=dict()
-		request.oauth_token=request.get_cookie('user', secret=CLIENT_SECRET)
+		request.out=dict() 
+		request.oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
 		if request.oauth_token:
-			user_info_url='https://api.foursquare.com/v2/users/self?oauth_token='+request.oauth_token+'&v='+DATEVERIFIED
-			api_response=json.loads(fetch(user_info_url).content)
-			if 'response' in api_response and 'user' in api_response['response']:
-				request.out['user']=api_response['response']['user']
-			else:
-				bottle.response.set_cookie('user', None, CLIENT_SECRET)
-				logging.info('invalidated auth token')
-		#todo memcache user data for up to 30 days
+			user = User.all().filter('oauth_token =', request.oauth_token).get() # look for a User with the token
+			if not user: # can't find the oauth_token
+				#todo: also do this if the user's data needs to be refreshed
+				# ask the api for user data
+				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(request.oauth_token, DATEVERIFIED)
+				api_response = json.loads(fetch(users_url).content)
+				if 'response' in api_response and 'user' in api_response['response']: # api call succeeded 
+					# look for a user with the user id
+					foursquare_id=int(api_response['response']['user']['id'])
+					user = User.get_by_id(foursquare_id) 
+					if not user: # no user is found
+						# make a new user record
+						user = User(key=db.Key.from_path('User', foursquare_id))
+					else: # oauth_token must have changed
+						user.oauth_token = request.oauth_token
+					# update the User's data while we have the api response
+					user.from_api(api_response['response']['user']) 
+					user.put()
+					logging.info('created user')
+				else: # api call failed, the oauth_token is bad
+					# delete cookie
+					bottle.response.set_cookie('user', None, CLIENT_SECRET) 
+					logging.info('invalidated auth token')
+			# store the user
+			if user:
+				request.user = user
+			# else: oauth_token must be bad, get another
+				#todo: bottle.redirect('login')?
 		return fn()
 	return wrapped
 
@@ -101,15 +141,15 @@ def mode(iterable):
 	return max(counts, key = counts.get)
 
 @bottle.get('/')
-@bottle.view('home')
-@before
+@prepare_request
 def home():
-	if not 'user' in request.out:
+	if not request.user:
 		request.out['client_id']=CLIENT_ID
 		request.out['redirect_uri']=REDIRECT_URI
+		return bottle.template('welcome')
 	else:
 		#load all the user's checkins
-		checkins = get_checkins(request.oauth_token, request.out['user']['checkins']['count'])
+		checkins = get_checkins(request.oauth_token, request.user.checkins)
 		data = get_tod_data(checkins, request.oauth_token)
 		kmcl = KMeansClustering(data)
 		clusters = kmcl.getclusters(10)
@@ -127,8 +167,7 @@ def home():
 			))
 				
 		groups=sorted(groups, key=lambda k: k['tod_min'])
-		request.out['groups'] = groups
-	return request.out
+		return bottle.template('home', user=request.user, groups=groups)
 	
 @bottle.get('/callback')
 @bottle.view('auth')
