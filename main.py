@@ -148,6 +148,7 @@ class User(db.Model):
 					break
 			logging.info('performed %s api calls'%calls)
 			#todo: decide what to do with old checkins
+			#todo: move this to the TaskQueue of course
 			
 			if not memcache.add(memcache_key, checkins, CACHE_CHECKINS):
 				logging.error('memcache.add(%s) failed'%memcache_key)
@@ -230,6 +231,8 @@ def home():
 		# determine tod clusters
 		kmcl = KMeansClustering(tod_data)
 		clusters = kmcl.getclusters(10)
+		#todo: kmeans is paralelizable, so I could use MapReduce
+		#todo: move this to an ajax call
 		
 		# format tod groups
 		groups=[]

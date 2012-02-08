@@ -47,11 +47,15 @@
 	%end
 		</div>
 		
+		<h2>Areas you checkin</h2>
+		<div id="map_canvas" style="width: 100%; height: 100%"></div>
 	</article>
 %end
 
 %def script():
+	
 	$('.btn').button()
+	
 %end
 
 %rebase main stage=stage, debug=get('debug', None), script=script
