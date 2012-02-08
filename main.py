@@ -33,7 +33,7 @@ class ApiException(Exception):
 
 # Models
 class User(db.Model):
-	'Key.id() == user.id'
+	#Key.id() == user.id
 	oauth_token = db.StringProperty()
 	firstName = db.StringProperty()
 	lastName = db.StringProperty()
@@ -55,7 +55,10 @@ class User(db.Model):
 		
 		oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
 		if oauth_token:
-			user = User.all().filter('oauth_token =', oauth_token).get() # look for a User with the token
+			
+			# look for a User with the token
+			user = User.all().filter('oauth_token =', oauth_token).get() 
+			
 			if not user: # can't find the oauth_token
 				#todo: also do this if the user's data needs to be refreshed
 				
@@ -78,7 +81,7 @@ class User(db.Model):
 					# update the User's data while we have the api response
 					user.from_api(api_response['response']['user']) 
 					user.put()
-					logging.info('created user')
+					logging.info('User.put')
 			#else: what if oauth_token has been revoked
 			
 			if user:
@@ -90,6 +93,8 @@ class User(db.Model):
 		"""Gets a User's Checkins from DataStore, fetching new ones from the 
 		API if necessary"""
 		
+		# the lifespan of this memcache value determines the frequency of 
+		# polling for new checkins
 		memcache_key = 'checkins:%s'%self.key().id()
 		checkins = memcache.get(memcache_key)
 		if not checkins:
@@ -99,15 +104,17 @@ class User(db.Model):
 			checkins = [ci for ci in query]
 			if not checkins:
 				checkins = []
+			#todo: find out what happens when someone has a butt-ton of checkins
 			
 			# Look for new checkins
+			#todo: don't bother if it hasn't been very long since the last one
 			api = 'https://api.foursquare.com/v2/users/self/checkins'
 			params = dict(
 				oauth_token=self.oauth_token,
 				v=DATEVERIFIED,
 				limit=CHECKINS_CHUNK)
 			calls = 0
-			while calls < 20:
+			while calls < 20: # do at most 20 API calls
 				
 				# ask the api for all the checkins since the last one
 				if len(checkins) > 0:
@@ -140,12 +147,15 @@ class User(db.Model):
 				if len(items) < CHECKINS_CHUNK:
 					break
 			logging.info('performed %s api calls'%calls)
+			#todo: decide what to do with old checkins
+			
 			if not memcache.add(memcache_key, checkins, CACHE_CHECKINS):
 				logging.error('memcache.add(%s) failed'%memcache_key)
 		return checkins
 	
-	def time_of_day_data(self):
-		"""Returns a list of tuples representing the time of day of a user's checkins"""
+	def time_of_day_data(self): #todo: allow min/max parameters
+		"""Returns a list of tuples representing the time of day of a user's
+		checkins"""
 		checkins = self.checkins()
 		data=[]
 		for ci in checkins:
@@ -157,7 +167,7 @@ class User(db.Model):
 	#end User
 
 class Checkin(db.Model):
-	'Key.name() == checkin.id'
+	#Key.name() == checkin.id
 	user = db.ReferenceProperty(User)
 	created = db.DateTimeProperty()
 	location = db.GeoPtProperty()
@@ -178,7 +188,9 @@ class Checkin(db.Model):
 		self.location = db.GeoPt(lat, lng)
 		
 	def time_of_day(self):
-		return int(self.created.hour*60*60 + self.created.minute*60 + self.created.second)
+		hour_seconds = self.created.hour*60*60
+		minute_seconds = self.created.minute*60
+		return int(hour_seconds + minute_seconds + self.created.second)
 
 # Plain old functions
 def mode(iterable):
@@ -189,7 +201,9 @@ def mode(iterable):
 
 def pretty_tod(tod):
 	t = time.gmtime(tod)
-	return str(abs(int(time.strftime('%I',t))))+time.strftime('%p',t).lower()
+	hour_with_no_leading_zero = str(abs(int(time.strftime('%I',t))))
+	lowercase_am_or_pm = time.strftime('%p',t).lower()
+	return hour_with_no_leading_zero + lowercase_am_or_pm
 
 def deauthenticate():
 	response.delete_cookie('user')
@@ -202,7 +216,7 @@ def deauthenticate():
 def home():
 	request.user = User.current()
 	
-	if not hasattr(request, 'user'):
+	if not request.user:
 		return template('welcome', 
 			client_id=CLIENT_ID, 
 			redirect_uri=REDIRECT_URI)
@@ -237,9 +251,18 @@ def home():
 
 @get('/callback')
 def auth():
+	"""Sets an access_token in a secure session cookie"""
 	code = request.query.code
-	access_token_url='https://foursquare.com/oauth2/access_token?client_id='+CLIENT_ID+'&client_secret='+CLIENT_SECRET+'&grant_type=authorization_code&redirect_uri='+REDIRECT_URI+'&code='+code
-	auth_response=json.loads(fetch(access_token_url).content)
+	auth = 'https://foursquare.com/oauth2/access_token'
+	params = dict(
+		client_id=CLIENT_ID,
+		client_secret=CLIENT_SECRET,
+		grant_type='authorization_code',
+		redirect_uri=REDIRECT_URI,
+		code=code
+	)
+	auth_says = fetch('%s?%s'%(auth, urlencode(params)))
+	auth_response = json.loads(auth_says.content)
 	if 'access_token' in auth_response:
 		oauth_token=auth_response['access_token']
 		response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
