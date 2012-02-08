@@ -1,5 +1,3 @@
-%import time
-
 %def stage():
 	<article>
 		
@@ -44,7 +42,7 @@
   box-flex: {{groups[g]['width']}};%">
 				{{groups[g]['len']}}
 				<br>
-				{{str(abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_min'])))))+time.strftime('%p',time.gmtime(groups[g]['tod_min']))}}-{{str(abs(int(time.strftime('%I',time.gmtime(groups[g]['tod_max'])))))+time.strftime('%p',time.gmtime(groups[g]['tod_min']))}}
+				{{groups[g]['start']}}-{{groups[g]['end']}}
 			</div>
 	%end
 		</div>
