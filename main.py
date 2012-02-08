@@ -65,6 +65,11 @@ class User(db.Model):
 				api_says = fetch('%s?%s'%(api, urlencode(params)))
 				calls += 1
 				data = json.loads(api_says.content)
+				if api_says.status_code == 401:
+					raise ApiException(data['meta']['errorType'])
+					
+				data = json.loads(api_says.content)
+				
 				items = data['response']['checkins']['items']
 				
 				# store the new checkins
@@ -81,7 +86,7 @@ class User(db.Model):
 				checkins = new_checkins
 				
 				# quit when less than the limit are returned
-				if len(items)<CHECKINS_CHUNK:
+				if len(items) < CHECKINS_CHUNK:
 					break
 			logging.info('performed %s api calls'%calls)
 			if not memcache.add(memcache_key, checkins, CACHE_CHECKINS):
@@ -98,6 +103,12 @@ class User(db.Model):
 			))
 		return data
 	#end User
+
+class ApiException(Exception):
+	def __init__(self, value):
+		self.value = value
+	def __str__(self):
+		return repr(self.value)
 
 class Checkin(db.Model):
 	'Key.name() == checkin.id'
@@ -126,14 +137,14 @@ class Checkin(db.Model):
 def prepare_request(fn):
 	""" before filter that sets properties in request to be used by all request handlers """
 	def wrapped():
-		request.oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
-		if request.oauth_token:
-			user = User.all().filter('oauth_token =', request.oauth_token).get() # look for a User with the token
+		oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
+		if oauth_token:
+			user = User.all().filter('oauth_token =', oauth_token).get() # look for a User with the token
 			if not user: # can't find the oauth_token
 				#todo: also do this if the user's data needs to be refreshed
 				
 				# ask the api for user data
-				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(request.oauth_token, DATEVERIFIED)
+				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(oauth_token, DATEVERIFIED)
 				api_response = json.loads(fetch(users_url).content)
 				if 'response' in api_response and 'user' in api_response['response']: # api call succeeded 
 				
@@ -144,18 +155,19 @@ def prepare_request(fn):
 					
 						# make a new user record
 						user = User(key=db.Key.from_path('User', foursquare_id))
+						
 					else: # oauth_token must have changed
-						user.oauth_token = request.oauth_token
+						user.oauth_token = oauth_token
 						
 					# update the User's data while we have the api response
 					user.from_api(api_response['response']['user']) 
 					user.put()
 					logging.info('created user')
 				else: # api call failed, the oauth_token is bad
-				
 					# delete cookie
-					bottle.response.set_cookie('user', None, CLIENT_SECRET) 
+					bottle.response.delete_cookie('user') 
 					logging.info('invalidated auth token')
+			
 			# store the user
 			if user:
 				request.user = user
@@ -164,7 +176,6 @@ def prepare_request(fn):
 				#todo: bottle.redirect('login')?
 		return fn()
 	return wrapped
-
 
 def mode(iterable):
 	counts = dict()
@@ -179,14 +190,25 @@ def pretty_tod(tod):
 @bottle.get('/')
 @prepare_request
 def home():
-	if not request.user:
-		request.out['client_id']=CLIENT_ID
-		request.out['redirect_uri']=REDIRECT_URI
-		return bottle.template('welcome')
+	
+	if not hasattr(request, 'user'):
+		return bottle.template('welcome', 
+			client_id=CLIENT_ID, 
+			redirect_uri=REDIRECT_URI)
+			
 	else:
+		try: # get clustering data
+			tod_data = request.user.time_of_day_data()
+		except ApiException:
+			# delete cookie
+			bottle.response.delete_cookie('user') 
+			logging.info('invalidated auth token')
+			bottle.redirect('/')
 		
-		kmcl = KMeansClustering(request.user.time_of_day_data())
+		# determine clusters
+		kmcl = KMeansClustering(tod_data)
 		clusters = kmcl.getclusters(10)
+		
 		groups=[]
 		for cl in clusters:
 			tod_max=max([i[0] for i in cl])
