@@ -4,25 +4,34 @@
 #
 
 import os, logging, bottle, random
+from bottle import request, response, redirect, get, abort, template
 from google.appengine.ext.webapp import util
 from google.appengine.api.urlfetch import fetch
 from google.appengine.api import memcache
 from google.appengine.ext import db
 import simplejson as json
 from urllib import urlencode
-from bottle import request
 from datetime import datetime
 from cluster import KMeansClustering
 from math import floor
 import pytz
 import time
 
+# Load appropriate settings globals
 if os.environ['SERVER_SOFTWARE'].startswith('Dev'):
 	from dev_settings import *
 	bottle.debug(True)
 else: #prod
 	from prod_settings import *
 
+# Custom Exceptions
+class ApiException(Exception):
+	def __init__(self, value):
+		self.value = value
+	def __str__(self):
+		return repr(self.value)
+
+# Models
 class User(db.Model):
 	'Key.id() == user.id'
 	oauth_token = db.StringProperty()
@@ -38,11 +47,53 @@ class User(db.Model):
 		self.photo = db.Link(data['photo'])
 		self.link = db.Link(data['canonicalUrl'])
 		self.email = db.Email(data['contact']['email'])
+	
+	@classmethod
+	def current(self):
+		"""returns a User instance representing the currently authenticated 
+		user"""
 		
+		oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
+		if oauth_token:
+			user = User.all().filter('oauth_token =', oauth_token).get() # look for a User with the token
+			if not user: # can't find the oauth_token
+				#todo: also do this if the user's data needs to be refreshed
+				
+				# ask the api for user data
+				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(oauth_token, DATEVERIFIED)
+				api_response = json.loads(fetch(users_url).content)
+				if 'response' in api_response and 'user' in api_response['response']: # api call succeeded 
+				
+					# look for a user with the user id
+					foursquare_id=int(api_response['response']['user']['id'])
+					user = User.get_by_id(foursquare_id) 
+					if not user: # no user is found
+					
+						# make a new user record
+						user = User(key=db.Key.from_path('User', foursquare_id))
+						
+					else: # oauth_token must have changed
+						user.oauth_token = oauth_token
+						
+					# update the User's data while we have the api response
+					user.from_api(api_response['response']['user']) 
+					user.put()
+					logging.info('created user')
+			#else: what if oauth_token has been revoked
+			
+			if user:
+				return user
+			else: # the oauth_token is bad
+				unauthenticate()
+	
 	def checkins(self):
+		"""Gets a User's Checkins from DataStore, fetching new ones from the 
+		API if necessary"""
+		
 		memcache_key = 'checkins:%s'%self.key().id()
 		checkins = memcache.get(memcache_key)
 		if not checkins:
+			
 			# Load all checkins from the DataStore
 			query = Checkin.all().filter('user =', self).order('created')
 			checkins = [ci for ci in query]
@@ -94,6 +145,7 @@ class User(db.Model):
 		return checkins
 	
 	def time_of_day_data(self):
+		"""Returns a list of tuples representing the time of day of a user's checkins"""
 		checkins = self.checkins()
 		data=[]
 		for ci in checkins:
@@ -103,12 +155,6 @@ class User(db.Model):
 			))
 		return data
 	#end User
-
-class ApiException(Exception):
-	def __init__(self, value):
-		self.value = value
-	def __str__(self):
-		return repr(self.value)
 
 class Checkin(db.Model):
 	'Key.name() == checkin.id'
@@ -133,50 +179,8 @@ class Checkin(db.Model):
 		
 	def time_of_day(self):
 		return int(self.created.hour*60*60 + self.created.minute*60 + self.created.second)
-		
-def prepare_request(fn):
-	""" before filter that sets properties in request to be used by all request handlers """
-	def wrapped():
-		oauth_token = request.get_cookie('user', secret=CLIENT_SECRET)
-		if oauth_token:
-			user = User.all().filter('oauth_token =', oauth_token).get() # look for a User with the token
-			if not user: # can't find the oauth_token
-				#todo: also do this if the user's data needs to be refreshed
-				
-				# ask the api for user data
-				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(oauth_token, DATEVERIFIED)
-				api_response = json.loads(fetch(users_url).content)
-				if 'response' in api_response and 'user' in api_response['response']: # api call succeeded 
-				
-					# look for a user with the user id
-					foursquare_id=int(api_response['response']['user']['id'])
-					user = User.get_by_id(foursquare_id) 
-					if not user: # no user is found
-					
-						# make a new user record
-						user = User(key=db.Key.from_path('User', foursquare_id))
-						
-					else: # oauth_token must have changed
-						user.oauth_token = oauth_token
-						
-					# update the User's data while we have the api response
-					user.from_api(api_response['response']['user']) 
-					user.put()
-					logging.info('created user')
-				else: # api call failed, the oauth_token is bad
-					# delete cookie
-					bottle.response.delete_cookie('user') 
-					logging.info('invalidated auth token')
-			
-			# store the user
-			if user:
-				request.user = user
-				
-			# else: oauth_token must be bad, get another
-				#todo: bottle.redirect('login')?
-		return fn()
-	return wrapped
 
+# Plain old functions
 def mode(iterable):
 	counts = dict()
 	for item in iterable:
@@ -187,28 +191,33 @@ def pretty_tod(tod):
 	t = time.gmtime(tod)
 	return str(abs(int(time.strftime('%I',t))))+time.strftime('%p',t).lower()
 
-@bottle.get('/')
-@prepare_request
+def deauthenticate():
+	response.delete_cookie('user')
+	request.user = None
+	logging.info('invalidated auth token')
+	redirect('/')
+
+# Request handlers
+@get('/')
 def home():
+	request.user = User.current()
 	
 	if not hasattr(request, 'user'):
-		return bottle.template('welcome', 
+		return template('welcome', 
 			client_id=CLIENT_ID, 
 			redirect_uri=REDIRECT_URI)
-			
+	
 	else:
 		try: # get clustering data
 			tod_data = request.user.time_of_day_data()
 		except ApiException:
-			# delete cookie
-			bottle.response.delete_cookie('user') 
-			logging.info('invalidated auth token')
-			bottle.redirect('/')
+			deauthenticate()
 		
-		# determine clusters
+		# determine tod clusters
 		kmcl = KMeansClustering(tod_data)
 		clusters = kmcl.getclusters(10)
 		
+		# format tod groups
 		groups=[]
 		for cl in clusters:
 			tod_max=max([i[0] for i in cl])
@@ -222,28 +231,23 @@ def home():
 				width=int(floor((tod_max-tod_min)/(60*60*24/100))),
 				left=int(floor(tod_min/(60*60*24/100)))
 			))
-				
+		
 		groups=sorted(groups, key=lambda k: k['tod_min'])
-		return bottle.template('home', user=request.user, groups=groups)
-	
-@bottle.get('/callback')
-@bottle.view('auth')
+		return template('home', user=request.user, groups=groups)
+
+@get('/callback')
 def auth():
 	code = request.query.code
 	access_token_url='https://foursquare.com/oauth2/access_token?client_id='+CLIENT_ID+'&client_secret='+CLIENT_SECRET+'&grant_type=authorization_code&redirect_uri='+REDIRECT_URI+'&code='+code
 	auth_response=json.loads(fetch(access_token_url).content)
 	if 'access_token' in auth_response:
 		oauth_token=auth_response['access_token']
-		bottle.response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
+		response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
 		logging.info(oauth_token)
-		bottle.redirect('/')
+		redirect('/')
 	else:
 		logging.error(auth_response)
-		bottle.abort()
-	
-	#todo: store user id in DataStore in case token changes
-	#todo: get an email address if we don't have one yet
-	#todo: tell them what we're doing with their data and email
+		abort()
 
 def main():
 	app = bottle.default_app()
