@@ -65,6 +65,9 @@ alt="Powered by Google App Engine">
 
 	</div> <!-- /container -->
 	
+	<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyBoHqhcEz52pXZSNCOoh_KmTy4YLQ_9fEI&sensor=true">
+	</script>
+	
 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 	<script>window.jQuery || document.write('<script src="/jquery-1.7.1.min.js"><\/script>')</script>
 
@@ -75,8 +78,7 @@ alt="Powered by Google App Engine">
 	
 	<script src="/plugins.js"></script>
 	
-	<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyBoHqhcEz52pXZSNCOoh_KmTy4YLQ_9fEI&sensor=true">
-	</script>
+	
 	<script src="/main.js"></script>
 %if defined('script'):
 	<script type="text/javascript">

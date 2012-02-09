@@ -47,14 +47,50 @@
 	%end
 		</div>
 		
-		<h2>Areas you checkin</h2>
-		<div id="map_canvas" style="width: 100%; height: 100%"></div>
+		<h2>Areas where you checkin</h2>
+		<div class="row">
+			<div class="span6" style="height: 500px">
+				<div id="map_canvas" style="width: 100%; height: 100%"></div>
+			</div>
+			<div class="span6">Venues go over here</div>
+		</div>
+		
 	</article>
 %end
 
 %def script():
+	$().ready(function(){
+		$('.btn').button()
 	
-	$('.btn').button()
+		var map = new google.maps.Map($("#map_canvas")[0], {
+			mapTypeId: google.maps.MapTypeId.ROADMAP
+		});
+		var bounds = new google.maps.LatLngBounds();
+		var ne = new google.maps.LatLng({{most['north']}},{{most['east']}});
+		var sw = new google.maps.LatLng({{most['south']}},{{most['west']}});
+		bounds.extend(ne);
+		bounds.extend(sw);
+		map.fitBounds(bounds);
+		var markers = [];
+		var rectangles = [];
+	%for a in areas:
+		//markers.push(new google.maps.Marker({
+		//	position: new google.maps.LatLng({{a['lat_mid']}},{{a['lng_mid']}}),
+		//	map:map
+		//}));
+		var rbounds = new google.maps.LatLngBounds();
+		var rne = new google.maps.LatLng({{a['lat_max']}},{{a['lng_max']}});
+		var rsw = new google.maps.LatLng({{a['lat_min']}},{{a['lng_min']}});
+		rbounds.extend(rne);
+		rbounds.extend(rsw);
+		rectangles.push(new google.maps.Rectangle({
+			strokeWeight:1,
+			fillOpacity:{{a['opacity']}},
+			bounds:rbounds,
+			map:map
+		}))
+	%end
+	});
 	
 %end
 

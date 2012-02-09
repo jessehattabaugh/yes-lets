@@ -165,6 +165,18 @@ class User(db.Model):
 				ci.time_of_day()
 			))
 		return data
+	
+	def geo_data(self): #todo: allow min/max parameters
+		"""Returns a list of tuples representing the lat/lng of a user's
+		checkins"""
+		checkins = self.checkins()
+		data=[]
+		for ci in checkins:
+			data.append((
+				ci.location.lat,
+				ci.location.lon
+			))
+		return data
 	#end User
 
 class Checkin(db.Model):
@@ -223,7 +235,7 @@ def home():
 			redirect_uri=REDIRECT_URI)
 	
 	else:
-		try: # get clustering data
+		try: # get tod clustering data
 			tod_data = request.user.time_of_day_data()
 		except ApiException:
 			deauthenticate()
@@ -250,7 +262,68 @@ def home():
 			))
 		
 		groups=sorted(groups, key=lambda k: k['tod_min'])
-		return template('home', user=request.user, groups=groups)
+		
+		try: # get geo clustering data
+			geo_data = request.user.geo_data()
+		except ApiException:
+			deauthenticate()
+		
+		# determine geo clusters
+		kmcl = KMeansClustering(geo_data)
+		clusters = kmcl.getclusters(20)
+		#todo: kmeans is paralelizable, so I could use MapReduce
+		#todo: move this to an ajax call
+		
+		# format tod groups
+		areas=[]
+		most=dict(
+			north=None,
+			south=None,
+			east=None,
+			west=None
+		)
+		for cl in clusters:
+			
+			lat_max=max([i[0] for i in cl])
+			if not most['north'] or lat_max > most['north']:
+				most['north'] = lat_max
+				
+			lat_min=min([i[0] for i in cl])
+			if not most['south'] or lat_min < most['south']:
+				most['south'] = lat_min
+			
+			lng_max=max([i[1] for i in cl])
+			if not most['east'] or lng_max > most['east']:
+				most['east'] = lng_max
+				
+			lng_min=min([i[1] for i in cl])
+			if not most['west'] or lng_min < most['west']:
+				most['west'] = lng_min
+				
+			areas.append(dict(
+				len=len(cl),
+				percent=len(geo_data)/len(cl)/100,
+				opacity=float(len(geo_data))/100.0/float(len(cl)),
+				avg_lat=sum([i[0] for i in cl])/len(cl),
+				avg_lng=sum([i[1] for i in cl])/len(cl),
+				lat_max=lat_max,
+				lat_min=lat_min,
+				lat_mid=lat_max-(lat_max-lat_min) / 2,
+				lng_max=lng_max,
+				lng_min=lng_min,
+				lng_mid=lng_max-(lng_max-lng_min) / 2,
+				radius=(lat_max - lat_min + lng_max - lng_min) / 2
+			))
+		
+		areas=sorted(areas, key=lambda k: k['percent'])
+		
+		return template(
+			'home', 
+			user=request.user, 
+			groups=groups, 
+			areas=areas,
+			most=most
+		)
 
 @get('/callback')
 def auth():
