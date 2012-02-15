@@ -143,10 +143,8 @@ def mode(iterable):
 @bottle.get('/')
 @prepare_request
 def home():
-	if not request.user:
-		request.out['client_id']=CLIENT_ID
-		request.out['redirect_uri']=REDIRECT_URI
-		return bottle.template('welcome')
+	if not hasattr(request, 'user'):
+		return bottle.template('welcome', client_id=CLIENT_ID, redirect_uri=REDIRECT_URI)
 	else:
 		#load all the user's checkins
 		checkins = get_checkins(request.oauth_token, request.user.checkins)

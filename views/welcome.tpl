@@ -1,4 +1,4 @@
-%def unauthed():
+%def stage():
 	<article class="hero-unit" role="main">
 		<h1>Lets hang out sometime!</h1>
 		<p>You and your friends always say that, but everybody's so busy 
