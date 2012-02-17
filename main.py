@@ -51,8 +51,8 @@ def deauthenticate():
 	redirect('/')
 
 # Request handlers
-@get('/')
 @get('/user/<user_id>')
+@get('/')
 def home(user_id=None):
 	request.user = User.current()
 	if not request.user:
@@ -62,7 +62,7 @@ def home(user_id=None):
 
 @get('/callback')
 def auth():
-	"""Sets an access_token in a secure session cookie"""
+	"""Sets an access_token in a secure cookie"""
 	code = request.query.code
 	auth = 'https://foursquare.com/oauth2/access_token'
 	params = dict(
@@ -77,7 +77,7 @@ def auth():
 	if 'access_token' in auth_response:
 		oauth_token=auth_response['access_token']
 		response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
-		logging.info(oauth_token)
+		logging.info('new oauth_token:%s'%oauth_token)
 		redirect('/')
 	else:
 		logging.error(auth_response)
