@@ -65,6 +65,7 @@ class User(db.Model):
 				# ask the api for user data
 				users_url = 'https://api.foursquare.com/v2/users/self?oauth_token=%s&v=%s'%(oauth_token, DATEVERIFIED)
 				api_response = json.loads(fetch(users_url).content)
+				logging.info('API call: %s'%users_url)
 				if 'response' in api_response and 'user' in api_response['response']: # api call succeeded 
 				
 					# look for a user with the user id
@@ -74,6 +75,7 @@ class User(db.Model):
 					
 						# make a new user record
 						user = User(key=db.Key.from_path('User', foursquare_id))
+						logging.info('Created a new User')
 						
 					else: # oauth_token must have changed
 						user.oauth_token = oauth_token
@@ -81,7 +83,7 @@ class User(db.Model):
 					# update the User's data while we have the api response
 					user.from_api(api_response['response']['user']) 
 					user.put()
-					logging.info('User.put')
+					logging.info('User.put OAuth Token: %S'%oauth_token)
 			#else: what if oauth_token has been revoked
 			
 			if user:
@@ -157,7 +159,12 @@ class User(db.Model):
 	def time_of_day_data(self): #todo: allow min/max parameters
 		"""Returns a list of tuples representing the time of day of a user's
 		checkins"""
-		checkins = self.checkins()
+		
+		try:
+			checkins = self.checkins()
+		except ApiException:
+			deauthenticate()
+			
 		data=[]
 		for ci in checkins:
 			data.append((
@@ -169,7 +176,11 @@ class User(db.Model):
 	def geo_data(self): #todo: allow min/max parameters
 		"""Returns a list of tuples representing the lat/lng of a user's
 		checkins"""
-		checkins = self.checkins()
+		try:
+			checkins = self.checkins()
+		except ApiException:
+			deauthenticate()
+			
 		data=[]
 		for ci in checkins:
 			data.append((
@@ -225,6 +236,7 @@ def deauthenticate():
 	redirect('/')
 
 # Request handlers
+@get('/<user_id>')
 @get('/')
 def home():
 	request.user = User.current()
@@ -235,95 +247,96 @@ def home():
 			redirect_uri=REDIRECT_URI)
 	
 	else:
-		try: # get tod clustering data
-			tod_data = request.user.time_of_day_data()
-		except ApiException:
-			deauthenticate()
 		
-		# determine tod clusters
+		if not user_id None:
+			user = User(db.Key.from_path('User', int(user_id)))
+		w   e
+		tod_data = request.user.time_of_day_data()
+		if not user None:
+			user = User(db.Key.from_path('User', int(user_id)))
+			tod_data.extend(user.time_of_day_data())
 		kmcl = KMeansClustering(tod_data)
-		clusters = kmcl.getclusters(10)
-		#todo: kmeans is paralelizable, so I could use MapReduce
-		#todo: move this to an ajax call
+		time_clusters = kmcl.getclusters(10)
+		timeslots = format_time_clusters(time_clusters)
 		
-		# format tod groups
-		groups=[]
-		for cl in clusters:
-			tod_max=max([i[0] for i in cl])
-			tod_min=min([i[0] for i in cl])
-			groups.append(dict(
-				len=len(cl),
-				tod_avg=sum([i[0] for i in cl])/len(cl),
-				tod_min=tod_min,
-				start=pretty_tod(tod_min),
-				end=pretty_tod(tod_max),
-				width=int(floor((tod_max-tod_min)/(60*60*24/100))),
-				left=int(floor(tod_min/(60*60*24/100)))
-			))
-		
-		groups=sorted(groups, key=lambda k: k['tod_min'])
-		
-		try: # get geo clustering data
-			geo_data = request.user.geo_data()
-		except ApiException:
-			deauthenticate()
-		
-		# determine geo clusters
+		geo_data = request.user.geo_data()
+		if not user None:
+			geo_data.extend(user.geo_data())
 		kmcl = KMeansClustering(geo_data)
-		clusters = kmcl.getclusters(20)
-		#todo: kmeans is paralelizable, so I could use MapReduce
+		geo_clusters = kmcl.getclusters(20)
+		areas = format_geo_clusters(ge_clusters)
+		
+		#todo: kmeans is parallelizable, so I could use MapReduce
 		#todo: move this to an ajax call
-		
-		# format tod groups
-		areas=[]
-		most=dict(
-			north=None,
-			south=None,
-			east=None,
-			west=None
-		)
-		for cl in clusters:
-			
-			lat_max=max([i[0] for i in cl])
-			if not most['north'] or lat_max > most['north']:
-				most['north'] = lat_max
-				
-			lat_min=min([i[0] for i in cl])
-			if not most['south'] or lat_min < most['south']:
-				most['south'] = lat_min
-			
-			lng_max=max([i[1] for i in cl])
-			if not most['east'] or lng_max > most['east']:
-				most['east'] = lng_max
-				
-			lng_min=min([i[1] for i in cl])
-			if not most['west'] or lng_min < most['west']:
-				most['west'] = lng_min
-				
-			areas.append(dict(
-				len=len(cl),
-				percent=len(geo_data)/len(cl)/100,
-				opacity=float(len(geo_data))/100.0/float(len(cl)),
-				avg_lat=sum([i[0] for i in cl])/len(cl),
-				avg_lng=sum([i[1] for i in cl])/len(cl),
-				lat_max=lat_max,
-				lat_min=lat_min,
-				lat_mid=lat_max-(lat_max-lat_min) / 2,
-				lng_max=lng_max,
-				lng_min=lng_min,
-				lng_mid=lng_max-(lng_max-lng_min) / 2,
-				radius=(lat_max - lat_min + lng_max - lng_min) / 2
-			))
-		
-		areas=sorted(areas, key=lambda k: k['percent'])
 		
 		return template(
 			'home', 
 			user=request.user, 
-			groups=groups, 
+			timeslots=timeslots, 
 			areas=areas,
 			most=most
 		)
+def format_time_clusters(clusters):
+	# format tod groups
+	groups=[]
+	for cl in clusters:
+		tod_max=max([i[0] for i in cl])
+		tod_min=min([i[0] for i in cl])
+		groups.append(dict(
+			len=len(cl),
+			tod_avg=sum([i[0] for i in cl])/len(cl),
+			tod_min=tod_min,
+			start=pretty_tod(tod_min),
+			end=pretty_tod(tod_max),
+			width=int(floor((tod_max-tod_min)/(60*60*24/100))),
+			left=int(floor(tod_min/(60*60*24/100)))
+		))
+	
+	return sorted(groups, key=lambda k: k['tod_min'])
+	
+def format_geo_clusters(clusters):
+	# format tod groups
+	areas=[]
+	most=dict(
+		north=None,
+		south=None,
+		east=None,
+		west=None
+	)
+	for cl in clusters:
+		
+		lat_max=max([i[0] for i in cl])
+		if not most['north'] or lat_max > most['north']:
+			most['north'] = lat_max
+			
+		lat_min=min([i[0] for i in cl])
+		if not most['south'] or lat_min < most['south']:
+			most['south'] = lat_min
+		
+		lng_max=max([i[1] for i in cl])
+		if not most['east'] or lng_max > most['east']:
+			most['east'] = lng_max
+			
+		lng_min=min([i[1] for i in cl])
+		if not most['west'] or lng_min < most['west']:
+			most['west'] = lng_min
+			
+		areas.append(dict(
+			len=len(cl),
+			percent=len(geo_data)/len(cl)/100,
+			opacity=float(len(geo_data))/100.0/float(len(cl)),
+			avg_lat=sum([i[0] for i in cl])/len(cl),
+			avg_lng=sum([i[1] for i in cl])/len(cl),
+			lat_max=lat_max,
+			lat_min=lat_min,
+			lat_mid=lat_max-(lat_max-lat_min) / 2,
+			lng_max=lng_max,
+			lng_min=lng_min,
+			lng_mid=lng_max-(lng_max-lng_min) / 2,
+			radius=(lat_max - lat_min + lng_max - lng_min) / 2
+		))
+	
+	return sorted(areas, key=lambda k: k['percent'])
 
 @get('/callback')
 def auth():
@@ -342,7 +355,7 @@ def auth():
 	if 'access_token' in auth_response:
 		oauth_token=auth_response['access_token']
 		response.set_cookie('user', oauth_token, secret=CLIENT_SECRET)
-		logging.info(oauth_token)
+		logging.info('new oauth_token:%s'%oauth_token)
 		redirect('/')
 	else:
 		logging.error(auth_response)
