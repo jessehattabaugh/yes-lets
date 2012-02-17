@@ -40,6 +40,9 @@
 						<li class="active"><a href="/">Home</a></li>
 						<li><a href="/invite">Invite</a></li>
 						<li><a href="/about">About</a></li>
+	% if defined('user'):
+						<li><a href="/logout">Logout</a></li>
+	% end
 					</nav>
 				</div><!--/.nav-collapse -->
 			</div>
