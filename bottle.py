@@ -2866,7 +2866,6 @@ def template(*args, **kwargs):
     or directly (as keyword arguments).
     '''
     import logging
-    logging.info(DEBUG)
     tpl = args[0] if args else None
     template_adapter = kwargs.pop('template_adapter', SimpleTemplate)
     if tpl not in TEMPLATES or DEBUG:

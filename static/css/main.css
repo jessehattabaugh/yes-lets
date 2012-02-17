@@ -1,5 +1,8 @@
 /* Global styles for Yes, Let's! 
  * Author: Jesse Hattabaugh 2012 */
+
+#map_canvas { height: 100% }
+
 footer *{
 	vertical-align: middle;
 }
