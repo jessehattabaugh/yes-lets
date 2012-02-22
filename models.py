@@ -1,7 +1,12 @@
-import os, bottle
+import os, bottle, logging
 from google.appengine.ext import db
 from bottle import request
 from google.appengine.api import memcache
+import simplejson as json
+from google.appengine.api.urlfetch import fetch
+from cluster import KMeansClustering
+from math import floor
+import pytz
 
 # Load appropriate settings globals
 if os.environ['SERVER_SOFTWARE'].startswith('Dev'):
@@ -13,15 +18,15 @@ else: #prod
 class User(db.Model):
 	#Key.id() == user.id
 	oauth_token = db.StringProperty()
-	firstName = db.StringProperty()
-	lastName = db.StringProperty()
+	first = db.StringProperty()
+	last = db.StringProperty()
 	photo = db.LinkProperty()
 	email = db.EmailProperty()
 	link = db.LinkProperty()
 	
 	def from_api(self, data):
-		self.firstName = data['firstName']
-		self.lastName = data['lastName']
+		self.first = data['firstName']
+		self.last = data['lastName']
 		self.photo = db.Link(data['photo'])
 		self.link = db.Link(data['canonicalUrl'])
 		self.email = db.Email(data['contact']['email'])
@@ -276,7 +281,7 @@ class Checkin(db.Model):
 class GeoCluster(db.Model):
 	user = db.ReferenceProperty(User)
 	created = db.DateTimeProperty()
-	checkins = db.ListProperty()
+	checkins = db.StringListProperty()
 	max_bound = db.GeoPtProperty()
 	min_bound = db.GeoPtProperty()
 	center = db.GeoPtProperty()
@@ -285,7 +290,7 @@ class GeoCluster(db.Model):
 class TimeCluster():
 	""""""
 	user=db.ReferenceProperty(User)
-	checkins=db.ListProperty()
+	checkins=db.StringListProperty()
 	#days=db.ListProperty()
 	#start=db.TimeProperty()
 	#end=db.TimeProperty()

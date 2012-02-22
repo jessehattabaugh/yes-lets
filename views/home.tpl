@@ -2,7 +2,7 @@
 	<article>
 		
 		<header>
-			<h1><img src="{{user.photo}}">{{user.firstName}} {{user.lastName}}</h1>
+			<h1><img src="{{user.photo}}">{{user.first}} {{user.last}}</h1>
 			<p><a href="{{user.link}}">Foursquare Profile</a></p>
 			<p>{{user.email}}</p>
 		</header>
@@ -94,4 +94,4 @@
 	
 %end
 
-%rebase main stage=stage, debug=get('debug', None), script=script
+%rebase main user=user, stage=stage, debug=get('debug', None), script=script

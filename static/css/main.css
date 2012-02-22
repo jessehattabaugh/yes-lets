@@ -6,7 +6,7 @@
 footer *{
 	vertical-align: middle;
 }
-.flexbox {
+.timespan {
   display: -webkit-box;
   -webkit-box-orient: horizontal;
   display: -moz-box;
@@ -14,7 +14,7 @@ footer *{
   display: box;
   box-orient: horizontal;
 }
-.flexbox div{
+.timespan div{
 	display: block;
 	position: relative;
 }

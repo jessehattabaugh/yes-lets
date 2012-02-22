@@ -7,12 +7,9 @@ import os, logging, bottle, random
 from bottle import request, response, redirect, get, abort, template
 from google.appengine.ext.webapp import util
 from google.appengine.api.urlfetch import fetch
-import simplejson as json
 from urllib import urlencode
 from datetime import datetime
-from cluster import KMeansClustering
-from math import floor
-import pytz
+import simplejson as json
 import time
 
 from models import User, Checkin
@@ -58,7 +55,7 @@ def home(user_id=None):
 	if not request.user:
 		return bottle.template('welcome', client_id=CLIENT_ID, redirect_uri=REDIRECT_URI)
 	else:
-		return template('home', user=request.user)
+		return template('profile', user=request.user)
 
 @get('/callback')
 def auth():

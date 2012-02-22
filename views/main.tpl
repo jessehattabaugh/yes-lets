@@ -12,13 +12,14 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 
 	<link rel="stylesheet" href="/bootstrap.min.css">
-	<style>
-	body {
-		padding-top: 60px;
-		padding-bottom: 40px;
-	}
-	</style>
 	<link rel="stylesheet" href="/bootstrap-responsive.min.css">
+	<link href='http://fonts.googleapis.com/css?family=Damion' rel='stylesheet' type='text/css'>
+	<style>
+		.navbar .brand{
+			font-family: 'Damion', cursive;
+			font-size: 24px;
+		}
+	</style>
 	<link rel="stylesheet" href="/main.css">
 
 	<script src="modernizr-2.5-respond-1.1.0.min.js"></script>
@@ -30,20 +31,29 @@
 		<div class="navbar-inner">
 			<div class="container">
 				<a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-					<span class="i-bar"></span>
-					<span class="i-bar"></span>
-					<span class="i-bar"></span>
+					<i class="icon-list icon-white"></i>
 				</a>
 				<a class="brand" href="/">Yes, Let's!</a>
 				<div class="nav-collapse">
-					<nav class="nav">
-						<li class="active"><a href="/">Home</a></li>
-						<li><a href="/invite">Invite</a></li>
-						<li><a href="/about">About</a></li>
 	% if defined('user'):
-						<li><a href="/logout">Logout</a></li>
+					<ul class="nav">
+						<li class="active"><a href="/">Profile</a></li>
+						<li><a href="/friends">Friends</a></li>
+					</ul>
+					<ul class="nav pull-right">
+						<li><img style="height: 2em; margin: .5em" src="{{user.photo}}"></li>
+						<li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+								{{user.first}} {{user.last}}
+								<i class="caret"></i>
+							</a>
+              <ul class="dropdown-menu">
+                <li><a href="#">Account</a></li>
+                <li><a href="/logout">Logout</a></li>
+              </ul>
+            </li>
+					</ul>
 	% end
-					</nav>
 				</div><!--/.nav-collapse -->
 			</div>
 		</div>
@@ -60,10 +70,13 @@
 
 		<footer>
 			&copy; 2012 <a href="mailto:arkancsican@gmail.com">Jesse Hattabaugh</a>
-			<img style="width:250px" src="https://playfoursquare.s3.amazonaws.com/press/logo/poweredByFoursquare_gray.png">
+			<img style="width:250px" src="https://playfoursquare.s3.amazonaws.com/press/logo/poweredByFoursquare_gray.png" 
+				alt="Powered by Foursquare">
 			<img src="//code.google.com/appengine/images/appengine-silver-120x30.gif" 
-alt="Powered by Google App Engine">
-			<div class="g-plusone" data-annotation="inline" data-width="200"></div>
+				alt="Powered by Google App Engine">
+			<div class="pull-right">
+				<div class="g-plusone" data-annotation="inline" data-width="200"></div>
+			</div>
 		</footer>
 
 	</div> <!-- /container -->
